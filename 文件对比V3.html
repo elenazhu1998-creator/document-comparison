@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文档对比工具 - Word Style</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC','Segoe UI',sans-serif;background:#d6dbe1;color:#222;font-size:14px}
+
+/* ===== Word-like Ribbon ===== */
+.ribbon{background:linear-gradient(180deg,#f3f3f3 0%,#e8e8e8 100%);border-bottom:1px solid #b0b0b0;padding:0;user-select:none}
+.ribbon-top{background:#1a56db;color:#fff;display:flex;align-items:center;padding:6px 16px;gap:12px;font-size:13px}
+.ribbon-top .app-title{font-weight:700;font-size:14px;letter-spacing:.5px}
+.ribbon-tabs{display:flex;gap:0;padding:0 8px}
+.ribbon-tab{padding:8px 20px;font-size:13px;color:#444;cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;font-weight:600;transition:.15s}
+.ribbon-tab:hover{background:#fff}
+.ribbon-tab.active{background:#fff;border-color:#c0c0c0;color:#1a56db;position:relative;top:1px}
+.ribbon-body{background:#fff;border-top:1px solid #c0c0c0;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* Toolbar buttons */
+.tb-group{display:flex;align-items:center;gap:4px;padding:0 8px;border-right:1px solid #ddd;height:44px}
+.tb-group:last-child{border-right:none}
+.tb-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid transparent;border-radius:4px;background:none;font-size:12px;cursor:pointer;color:#333;font-weight:600;transition:.15s;white-space:nowrap;position:relative;overflow:hidden}
+.tb-btn:hover{background:#dbeafe;border-color:#93c5fd}
+.tb-btn.primary{background:#1a56db;color:#fff;border-color:#1a56db}
+.tb-btn.primary:hover{background:#1e40af}
+.tb-btn.primary:disabled{opacity:.4;cursor:not-allowed}
+.tb-btn.loaded{background:#ecfdf5;border-color:#6ee7b7;color:#047857}
+.tb-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.tb-sep{width:1px;height:32px;background:#d0d0d0;margin:0 4px}
+
+/* View select */
+.view-select{padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12px;font-weight:600;color:#333;background:#fff;cursor:pointer}
+
+/* ===== Page Container ===== */
+.page-area{padding:24px 0;display:flex;flex-direction:column;align-items:center;min-height:calc(100vh - 140px)}
+
+/* A4 Page */
+.word-page{
+  width:210mm;max-width:calc(100vw - 48px);
+  background:#fff;
+  box-shadow:0 0 12px rgba(0,0,0,.15);
+  margin-bottom:24px;
+  padding:0;
+  position:relative;
+}
+
+/* Page header (like WD doc) */
+.page-hdr{
+  border-bottom:2px solid #1a56db;
+  padding:16px 60px 12px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+  align-items:start;
+}
+.page-hdr-left{font-size:12px;color:#555;line-height:1.6}
+.page-hdr-title{font-size:16px;font-weight:700;color:#111;text-align:center;grid-column:1/-1;margin-top:4px}
+.page-hdr-right{font-size:11px;color:#888;text-align:right}
+
+/* Page body content */
+.page-body{
+  padding:28px 60px 40px;
+  line-height:1.9;
+  font-size:14px;
+  color:#222;
+  min-height:500px;
+}
+.page-body p{margin-bottom:10px;text-align:justify}
+
+/* Page footer */
+.page-ftr{
+  border-top:1px solid #ccc;
+  padding:8px 60px;
+  font-size:11px;
+  color:#999;
+  display:flex;
+  justify-content:space-between;
+}
+
+/* ===== Track Changes Marks ===== */
+/* Deleted paragraph */
+.tc-del{
+  position:relative;
+  margin:4px 0;
+  padding:4px 12px 4px 16px;
+  border-left:3px solid #ef4444;
+  background:linear-gradient(90deg,#fef2f2,#fff 80%);
+  border-radius:0 4px 4px 0;
+}
+.tc-del-text{color:#991b1b;text-decoration:line-through;text-decoration-color:#ef4444}
+.tc-del::before{
+  content:'删除';
+  position:absolute;right:-56px;top:4px;
+  background:#fecaca;color:#dc2626;font-size:10px;font-weight:700;
+  padding:2px 6px;border-radius:3px;white-space:nowrap;
+}
+
+/* Added paragraph */
+.tc-add{
+  position:relative;
+  margin:4px 0;
+  padding:4px 12px 4px 16px;
+  border-left:3px solid #22c55e;
+  background:linear-gradient(90deg,#f0fdf4,#fff 80%);
+  border-radius:0 4px 4px 0;
+}
+.tc-add-text{color:#166534}
+.tc-add::before{
+  content:'新增';
+  position:absolute;right:-56px;top:4px;
+  background:#bbf7d0;color:#16a34a;font-size:10px;font-weight:700;
+  padding:2px 6px;border-radius:3px;white-space:nowrap;
+}
+
+/* Changed paragraph */
+.tc-chg{
+  position:relative;
+  margin:4px 0;
+  padding:4px 12px 4px 16px;
+  border-left:3px solid #f59e0b;
+  background:linear-gradient(90deg,#fffbeb,#fff 80%);
+  border-radius:0 4px 4px 0;
+}
+.tc-chg::before{
+  content:'修改';
+  position:absolute;right:-56px;top:4px;
+  background:#fde68a;color:#b45309;font-size:10px;font-weight:700;
+  padding:2px 6px;border-radius:3px;white-space:nowrap;
+}
+
+/* Inline word marks */
+.w-del{color:#dc2626;text-decoration:line-through;text-decoration-color:#ef4444;background:#fee2e2;padding:0 1px;border-radius:2px}
+.w-ins{color:#16a34a;text-decoration:underline;text-decoration-style:double;text-decoration-color:#22c55e;background:#dcfce7;padding:0 1px;border-radius:2px}
+.w-arrow{color:#999;font-size:12px;margin:0 4px}
+
+/* Equal paragraph - nothing */
+.tc-eq{}
+
+/* ===== Side-by-Side ===== */
+.side-container{width:calc(210mm * 2 + 32px);max-width:calc(100vw - 48px);display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.side-page{background:#fff;box-shadow:0 0 12px rgba(0,0,0,.15)}
+.side-page .page-body{min-height:400px}
+.side-page .s-del{padding:4px 12px 4px 16px;border-left:3px solid #ef4444;background:linear-gradient(90deg,#fef2f2,#fff 80%);margin:4px 0;border-radius:0 4px 4px 0}
+.side-page .s-del span{color:#991b1b;text-decoration:line-through;text-decoration-color:#ef4444}
+.side-page .s-add{padding:4px 12px 4px 16px;border-left:3px solid #22c55e;background:linear-gradient(90deg,#f0fdf4,#fff 80%);margin:4px 0;border-radius:0 4px 4px 0}
+.side-page .s-add span{color:#166534}
+.side-page .s-chg{padding:4px 12px 4px 16px;border-left:3px solid #f59e0b;background:linear-gradient(90deg,#fffbeb,#fff 80%);margin:4px 0;border-radius:0 4px 4px 0}
+.side-page .s-ph{color:transparent;user-select:none;min-height:1.9em;margin:4px 0;padding:4px 12px}
+
+/* ===== Legend Strip ===== */
+.legend-strip{
+  width:210mm;max-width:calc(100vw - 48px);
+  background:#fff;border-radius:6px;box-shadow:0 1px 6px rgba(0,0,0,.1);
+  padding:10px 24px;margin-bottom:16px;
+  display:flex;gap:24px;align-items:center;font-size:12px;color:#666;
+}
+.legend-strip.side-legend{width:calc(210mm * 2 + 32px)}
+.lg-item{display:inline-flex;align-items:center;gap:5px}
+.lg-sw{width:3px;height:16px;border-radius:2px;display:inline-block}
+.lg-sw.red{background:#ef4444}.lg-sw.green{background:#22c55e}.lg-sw.yellow{background:#f59e0b}
+.lg-stats{margin-left:auto;display:flex;gap:16px}
+.lg-stats b{margin-right:2px}
+.lg-stats .g{color:#16a34a}.lg-stats .r{color:#dc2626}.lg-stats .y{color:#ca8a04}
+
+/* ===== Empty State ===== */
+.empty-state{text-align:center;padding:100px 40px;color:#aaa;font-size:14px}
+.empty-state .big-icon{font-size:52px;display:block;margin-bottom:14px}
+
+/* ===== Loading ===== */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center;z-index:999;font-size:15px;color:#1a56db;font-weight:600;gap:10px}
+.loading-overlay.show{display:flex}
+.spinner{width:22px;height:22px;border:3px solid #dbeafe;border-top-color:#1a56db;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Responsive ===== */
+@media(max-width:900px){
+  .word-page,.legend-strip{width:100%!important}
+  .page-body,.page-hdr{padding-left:24px!important;padding-right:24px!important}
+  .tc-del::before,.tc-add::before,.tc-chg::before{position:static;display:inline-block;margin-bottom:4px}
+  .side-container{grid-template-columns:1fr!important;width:100%!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Ribbon ===== -->
+<div class="ribbon">
+  <div class="ribbon-top">
+    <span class="app-title">📄 文档对比工具</span>
+  </div>
+  <div class="ribbon-tabs">
+    <div class="ribbon-tab active">审阅 (Review)</div>
+  </div>
+  <div class="ribbon-body">
+    <div class="tb-group">
+      <label class="tb-btn" id="oldBtn">📁 旧文档<input type="file" id="oldFile" accept=".docx,.pdf,.txt,.csv,.md,.log,.json,.xml,.html,.yml,.yaml"></label>
+      <label class="tb-btn" id="newBtn">📄 新文档<input type="file" id="newFile" accept=".docx,.pdf,.txt,.csv,.md,.log,.json,.xml,.html,.yml,.yaml"></label>
+    </div>
+    <div class="tb-group">
+      <button class="tb-btn primary" id="compareBtn" disabled>▶ 开始对比</button>
+    </div>
+    <div class="tb-group">
+      <span style="font-size:12px;color:#666;margin-right:4px">显示方式：</span>
+      <select class="view-select" id="viewSelect">
+        <option value="inline">所有标记 (All Markup)</option>
+        <option value="side">左右对比 (Side by Side)</option>
+      </select>
+    </div>
+    <div class="tb-group">
+      <span style="font-size:11px;color:#aaa">支持 .docx / .pdf / .txt 等格式</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Page Area ===== -->
+<div class="page-area" id="pageArea">
+  <div class="empty-state">
+    <span class="big-icon">📂</span>
+    请在工具栏上传「旧文档」和「新文档」，然后点击「开始对比」<br>
+    <span style="font-size:12px;color:#ccc;margin-top:8px;display:inline-block">支持 Word (.docx) / PDF / TXT 等文本格式</span>
+  </div>
+</div>
+
+<!-- ===== Loading ===== -->
+<div class="loading-overlay" id="loading"><div class="spinner"></div>正在解析文档...</div>
+
+<!-- ===== Libs ===== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ============ State ============ */
+let oldText=null,newText=null,oldFileName='',newFileName='',diffOps=null,currentView='inline';
+
+/* ============ File IO ============ */
+async function extractPdf(buf){
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;const pp=[];
+  for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const tc=await pg.getTextContent();pp.push(tc.items.map(t=>t.str).join(' '))}
+  return pp.join('\n');
+}
+async function extractDocx(buf){return(await mammoth.extractRawText({arrayBuffer:buf})).value}
+async function readFile(file){
+  const n=file.name.toLowerCase();
+  if(n.endsWith('.pdf'))return extractPdf(await file.arrayBuffer());
+  if(n.endsWith('.docx'))return extractDocx(await file.arrayBuffer());
+  return new Promise((r,j)=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.onerror=j;fr.readAsText(file)});
+}
+function bindFile(inputId,btnId,setter,nameSetter){
+  const input=document.getElementById(inputId),btn=document.getElementById(btnId);
+  input.addEventListener('change',async function(){
+    const file=this.files[0];if(!file)return;
+    btn.innerHTML='⏳ '+file.name;btn.classList.remove('loaded');
+    try{const t=await readFile(file);setter(t);nameSetter(file.name);
+      btn.innerHTML='✅ '+file.name;btn.classList.add('loaded');
+      document.getElementById('compareBtn').disabled=!(oldText!==null&&newText!==null);
+    }catch(e){btn.innerHTML='❌ 解析失败';btn.classList.remove('loaded')}
+  });
+}
+bindFile('oldFile','oldBtn',v=>oldText=v,n=>oldFileName=n);
+bindFile('newFile','newBtn',v=>newText=v,n=>newFileName=n);
+
+/* ============ View Toggle ============ */
+document.getElementById('viewSelect').addEventListener('change',function(){
+  currentView=this.value;if(diffOps)renderAll(diffOps);
+});
+
+/* ============ Compare ============ */
+document.getElementById('compareBtn').addEventListener('click',()=>{
+  if(!oldText||!newText)return;
+  document.getElementById('loading').classList.add('show');
+  setTimeout(()=>{diffOps=buildDiff(oldText,newText);renderAll(diffOps);document.getElementById('loading').classList.remove('show')},60);
+});
+
+/* ============ Paragraph Split ============ */
+function toParas(text){return text.split(/\n\s*\n|\n/).map(s=>s.trim()).filter(s=>s.length>0)}
+
+/* ============ LCS ============ */
+function lcs(a,b){
+  const m=a.length,n=b.length;
+  const dir=Array.from({length:m+1},()=>new Uint8Array(n+1));
+  let prev=new Uint16Array(n+1),curr=new Uint16Array(n+1);
+  for(let i=1;i<=m;i++){[prev,curr]=[curr,prev];curr.fill(0);
+    for(let j=1;j<=n;j++){
+      if(a[i-1]===b[j-1]){curr[j]=prev[j-1]+1;dir[i][j]=0}
+      else if(prev[j]>=curr[j-1]){curr[j]=prev[j];dir[i][j]=1}
+      else{curr[j]=curr[j-1];dir[i][j]=2}
+    }
+  }
+  const r=[];let i=m,j=n;
+  while(i>0&&j>0){if(dir[i][j]===0){r.push({oi:i-1,ni:j-1});i--;j--}else if(dir[i][j]===1)i--;else j--}
+  return r.reverse();
+}
+
+/* ============ Similarity ============ */
+function sim(a,b){
+  if(a===b)return 1;const la=a.length,lb=b.length;if(!la||!lb)return 0;
+  if(Math.abs(la-lb)/Math.max(la,lb)>.8)return 0;
+  const longer=la>lb?a:b,shorter=la>lb?b:a,sl=shorter.length,ll=longer.length;
+  let prev=new Uint16Array(ll+1),curr=new Uint16Array(ll+1);
+  for(let j=0;j<=ll;j++)prev[j]=j;
+  for(let i=1;i<=sl;i++){curr[0]=i;for(let j=1;j<=ll;j++){curr[j]=shorter[i-1]===longer[j-1]?prev[j-1]:Math.min(prev[j-1],prev[j],curr[j-1])+1}[prev,curr]=[curr,prev]}
+  return 1-prev[ll]/ll;
+}
+
+/* ============ Word Diff ============ */
+function wordDiff(os,ns){
+  const ow=os.split(/(\s+)/),nw=ns.split(/(\s+)/),c=lcs(ow,nw);
+  let oi=0,ni=0,ci=0,oh='',nh='';
+  while(ci<c.length){
+    while(oi<c[ci].oi){oh+='<span class="w-del">'+esc(ow[oi])+'</span>';oi++}
+    while(ni<c[ci].ni){nh+='<span class="w-ins">'+esc(nw[ni])+'</span>';ni++}
+    oh+=esc(ow[oi]);oi++;nh+=esc(nw[ni]);ni++;ci++;
+  }
+  while(oi<ow.length){oh+='<span class="w-del">'+esc(ow[oi])+'</span>';oi++}
+  while(ni<nw.length){nh+='<span class="w-ins">'+esc(nw[ni])+'</span>';ni++}
+  return{oh,nh};
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+/* ============ Build Diff ============ */
+function buildDiff(oldT,newT){
+  const oldP=toParas(oldT),newP=toParas(newT),common=lcs(oldP,newP),ops=[];
+  let oi=0,ni=0,ci=0;
+  function flush(dels,adds){
+    let di=0,ai=0;
+    while(di<dels.length&&ai<adds.length){
+      if(sim(dels[di],adds[ai])>.3){ops.push({type:'changed',old:dels[di],new:adds[ai]});di++;ai++}
+      else{let best=-1,bs=.3;for(let k=ai;k<Math.min(ai+5,adds.length);k++){const s=sim(dels[di],adds[k]);if(s>bs){bs=s;best=k}}
+        if(best>-1){while(ai<best){ops.push({type:'added',text:adds[ai]});ai++}ops.push({type:'changed',old:dels[di],new:adds[ai]});di++;ai++}
+        else{ops.push({type:'deleted',text:dels[di]});di++}}
+    }
+    while(di<dels.length){ops.push({type:'deleted',text:dels[di]});di++}
+    while(ai<adds.length){ops.push({type:'added',text:adds[ai]});ai++}
+  }
+  while(ci<common.length){
+    const c=common[ci],dels=[],adds=[];
+    while(oi<c.oi){dels.push(oldP[oi]);oi++}
+    while(ni<c.ni){adds.push(newP[ni]);ni++}
+    flush(dels,adds);ops.push({type:'equal',text:oldP[oi]});oi++;ni++;ci++;
+  }
+  const dels=[],adds=[];
+  while(oi<oldP.length){dels.push(oldP[oi]);oi++}
+  while(ni<newP.length){adds.push(newP[ni]);ni++}
+  flush(dels,adds);return ops;
+}
+
+/* ============ Render ============ */
+function renderAll(ops){
+  let aC=0,dC=0,cC=0;
+  ops.forEach(o=>{if(o.type==='added')aC++;else if(o.type==='deleted')dC++;else if(o.type==='changed')cC++});
+  if(currentView==='inline')renderInline(ops,aC,dC,cC);
+  else renderSide(ops,aC,dC,cC);
+}
+
+function legendHtml(aC,dC,cC,extraClass){
+  return `<div class="legend-strip ${extraClass||''}">
+    <span class="lg-item"><span class="lg-sw red"></span> 删除内容 (删除线)</span>
+    <span class="lg-item"><span class="lg-sw green"></span> 新增内容</span>
+    <span class="lg-item"><span class="lg-sw yellow"></span> 修改内容</span>
+    <span class="lg-stats">
+      <span><b class="g">${aC}</b> 段新增</span>
+      <span><b class="r">${dC}</b> 段删除</span>
+      <span><b class="y">${cC}</b> 段修改</span>
+    </span>
+  </div>`;
+}
+
+/* ---- Page Header/Footer ---- */
+function pageHdrHtml(title,page,total,rev){
+  return `<div class="page-hdr">
+    <div class="page-hdr-left">Document Comparison Report</div>
+    <div class="page-hdr-right">Page ${page} of ${total}</div>
+    <div class="page-hdr-title">${esc(title)}</div>
+  </div>`;
+}
+function pageFtrHtml(oldN,newN){
+  return `<div class="page-ftr"><span>旧: ${esc(oldN)}</span><span>新: ${esc(newN)}</span></div>`;
+}
+
+/* ---- Split ops into pages ---- */
+function splitPages(ops,perPage){
+  const pages=[];let cur=[];
+  ops.forEach(op=>{cur.push(op);if(cur.length>=perPage){pages.push(cur);cur=[]}});
+  if(cur.length)pages.push(cur);
+  return pages.length?pages:[[/* empty */]];
+}
+
+/* ---- Inline View ---- */
+function renderInline(ops,aC,dC,cC){
+  const PARA_PER_PAGE=20;
+  const pages=splitPages(ops,PARA_PER_PAGE);
+  const total=pages.length;
+  let html=legendHtml(aC,dC,cC);
+  pages.forEach((pageOps,pi)=>{
+    html+=`<div class="word-page">`;
+    html+=pageHdrHtml('文档对比报告 — Track Changes',pi+1,total);
+    html+=`<div class="page-body">`;
+    pageOps.forEach(op=>{
+      if(op.type==='equal'){
+        html+=`<p class="tc-eq">${esc(op.text)}</p>`;
+      }else if(op.type==='deleted'){
+        html+=`<div class="tc-del"><p class="tc-del-text">${esc(op.text)}</p></div>`;
+      }else if(op.type==='added'){
+        html+=`<div class="tc-add"><p class="tc-add-text">${esc(op.text)}</p></div>`;
+      }else if(op.type==='changed'){
+        const wd=wordDiff(op.old,op.new);
+        html+=`<div class="tc-chg"><p>${wd.oh}<span class="w-arrow"> ➜ </span>${wd.nh}</p></div>`;
+      }
+    });
+    html+=`</div>`;
+    html+=pageFtrHtml(oldFileName,newFileName);
+    html+=`</div>`;
+  });
+  document.getElementById('pageArea').innerHTML=html;
+}
+
+/* ---- Side-by-Side View ---- */
+function renderSide(ops,aC,dC,cC){
+  const PARA_PER_PAGE=20;
+  const pages=splitPages(ops,PARA_PER_PAGE);
+  const total=pages.length;
+  let html=legendHtml(aC,dC,cC,'side-legend');
+  pages.forEach((pageOps,pi)=>{
+    let leftBody='',rightBody='';
+    const pairData=[];
+    pageOps.forEach(op=>{
+      if(op.type==='equal'){
+        pairData.push({l:`<p class="tc-eq">${esc(op.text)}</p>`,r:`<p class="tc-eq">${esc(op.text)}</p>`});
+      }else if(op.type==='deleted'){
+        pairData.push({l:`<div class="s-del"><p><span>${esc(op.text)}</span></p></div>`,r:`<p class="s-ph">&nbsp;</p>`});
+      }else if(op.type==='added'){
+        pairData.push({l:`<p class="s-ph">&nbsp;</p>`,r:`<div class="s-add"><p><span>${esc(op.text)}</span></p></div>`});
+      }else if(op.type==='changed'){
+        const wd=wordDiff(op.old,op.new);
+        pairData.push({l:`<div class="s-chg"><p>${wd.oh}</p></div>`,r:`<div class="s-chg"><p>${wd.nh}</p></div>`});
+      }
+    });
+    pairData.forEach((p,i)=>{
+      leftBody+=p.l.replace(/^<(p|div)/,`<$1 data-idx="${i}"`);
+      rightBody+=p.r.replace(/^<(p|div)/,`<$1 data-idx="${i}"`);
+    });
+
+    html+=`<div class="side-container">
+      <div class="side-page">
+        ${pageHdrHtml('旧文档: '+oldFileName,pi+1,total)}
+        <div class="page-body side-body-l" id="sL${pi}">${leftBody}</div>
+        ${pageFtrHtml(oldFileName,newFileName)}
+      </div>
+      <div class="side-page">
+        ${pageHdrHtml('新文档: '+newFileName,pi+1,total)}
+        <div class="page-body side-body-r" id="sR${pi}">${rightBody}</div>
+        ${pageFtrHtml(oldFileName,newFileName)}
+      </div>
+    </div>`;
+  });
+  document.getElementById('pageArea').innerHTML=html;
+
+  // Sync heights per pair
+  requestAnimationFrame(()=>{
+    pages.forEach((_,pi)=>{
+      const lEls=document.querySelectorAll(`#sL${pi} [data-idx]`);
+      const rEls=document.querySelectorAll(`#sR${pi} [data-idx]`);
+      lEls.forEach((le,i)=>{
+        const re=rEls[i];if(!re)return;
+        const h=Math.max(le.offsetHeight,re.offsetHeight);
+        le.style.minHeight=h+'px';re.style.minHeight=h+'px';
+      });
+    });
+  });
+}
+</script>
+</body>
+</html>
